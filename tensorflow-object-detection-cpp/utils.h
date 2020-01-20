@@ -17,9 +17,10 @@ using tensorflow::string;
 Status readLabelsMapFile(const string &fileName, std::map<int, string> &labelsMap);
 
 Status loadGraph(const string &graph_file_name,
-                 std::unique_ptr<tensorflow::Session> *session, tensorflow::SessionOptions *opts);
+                 std::unique_ptr<tensorflow::Session> *session);
 
-Status readTensorFromMat(const cv::Mat &mat, Tensor &outTensor, tensorflow::SessionOptions *opts);
+Status createGraph(std::unique_ptr<tensorflow::Session> *session);
+Status readTensorFromMat(const cv::Mat &mat, Tensor &outTensor, std::unique_ptr<tensorflow::Session> *session);
 
 void drawBoundingBoxOnImage(cv::Mat &image, double xMin, double yMin, double xMax, double yMax, double score, std::string label, bool scaled);
 

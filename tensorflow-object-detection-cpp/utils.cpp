@@ -42,8 +42,7 @@ using tensorflow::int32;
 /** Read a model graph definition (xxx.pb) from disk, and creates a session object you can use to run it.
  */
 Status loadGraph(const string &graph_file_name,
-                 unique_ptr<tensorflow::Session> *session,
-                 tensorflow::SessionOptions *opts) {
+                 unique_ptr<tensorflow::Session> *session) {
     tensorflow::GraphDef graph_def;
     Status load_graph_status =
             ReadBinaryProto(tensorflow::Env::Default(), graph_file_name, &graph_def);
@@ -51,7 +50,6 @@ Status loadGraph(const string &graph_file_name,
         return tensorflow::errors::NotFound("Failed to load compute graph at '",
                                             graph_file_name, "'");
     }
-    session->reset(tensorflow::NewSession(*opts));
     Status session_create_status = (*session)->Create(graph_def);
     if (!session_create_status.ok()) {
         return session_create_status;
@@ -103,32 +101,38 @@ Status readLabelsMapFile(const string &fileName, map<int, string> &labelsMap) {
     return Status::OK();
 }
 
-/** Convert Mat image into tensor of shape (1, height, width, d) where last three dims are equal to the original dims.
- */
-Status readTensorFromMat(const Mat &mat, Tensor &outTensor, tensorflow::SessionOptions *opts) {
-
+/** Create new graph for converting Mat to Tensor
+*/
+Status createGraph(std::unique_ptr<tensorflow::Session> *session) {
     auto root = tensorflow::Scope::NewRootScope();
     using namespace ::tensorflow::ops;
 
-    // Trick from https://github.com/tensorflow/tensorflow/issues/8033
-    float *p = outTensor.flat<float>().data();
-    Mat fakeMat(mat.rows, mat.cols, CV_32FC3, p);
-    mat.convertTo(fakeMat, CV_32FC3);
-
     auto input_tensor = Placeholder(root.WithOpName("input"), tensorflow::DT_FLOAT);
-    vector<pair<string, tensorflow::Tensor>> inputs = {{"input", outTensor}};
-    auto uint8Caster = Cast(root.WithOpName("uint8_Cast"), outTensor, tensorflow::DT_UINT8);
+    auto uint8Caster = Cast(root.WithOpName("uint8_Cast"), input_tensor, tensorflow::DT_UINT8);
 
     // This runs the GraphDef network definition that we've just constructed, and
     // returns the results in the output outTensor.
     tensorflow::GraphDef graph;
     TF_RETURN_IF_ERROR(root.ToGraphDef(&graph));
 
-    vector<Tensor> outTensors;
-    unique_ptr<tensorflow::Session> session(tensorflow::NewSession(*opts));
+    TF_RETURN_IF_ERROR((*session)->Create(graph));
+    return Status::OK();
+}
 
-    TF_RETURN_IF_ERROR(session->Create(graph));
-    TF_RETURN_IF_ERROR(session->Run({inputs}, {"uint8_Cast"}, {}, &outTensors));
+/** Convert Mat image into tensor of shape (1, height, width, d) where last three dims are equal to the original dims.
+ */
+Status readTensorFromMat(const Mat &mat, Tensor &outTensor,
+                         std::unique_ptr<tensorflow::Session> *session) {
+
+    // Trick from https://github.com/tensorflow/tensorflow/issues/8033
+    float *p = outTensor.flat<float>().data();
+    Mat fakeMat(mat.rows, mat.cols, CV_32FC3, p);
+    mat.convertTo(fakeMat, CV_32FC3);
+
+    vector<Tensor> outTensors;
+    vector<pair<string, tensorflow::Tensor>> inputs = {{"input", outTensor}};
+
+    TF_RETURN_IF_ERROR((*session)->Run({inputs}, {"uint8_Cast"}, {}, &outTensors));
 
     outTensor = outTensors.at(0);
     return Status::OK();

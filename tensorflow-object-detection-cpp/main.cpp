@@ -54,17 +54,21 @@ int main(int argc, char* argv[]) {
     tensorflow::ConfigProto* config = &opts.config;
     opts.config.mutable_gpu_options()->set_allow_growth(true);
 
+    // Create session for object detetion
+    std::unique_ptr<tensorflow::Session> objectDetectionSession(tensorflow::NewSession(opts));
     // Load and initialize the model from .pb file
-    std::unique_ptr<tensorflow::Session> session;
     string graphPath = tensorflow::io::JoinPath(ROOTDIR, GRAPH);
     LOG(INFO) << "graphPath:" << graphPath;
-    Status loadGraphStatus = loadGraph(graphPath, &session, &opts);
+    Status loadGraphStatus = loadGraph(graphPath, &objectDetectionSession);
     if (!loadGraphStatus.ok()) {
         LOG(ERROR) << "loadGraph(): ERROR" << loadGraphStatus;
         return -1;
     } else
         LOG(INFO) << "loadGraph(): frozen graph loaded" << endl;
 
+    // Create session for data converting
+    std::unique_ptr<tensorflow::Session> dataConvertingSession(tensorflow::NewSession(opts));
+    createGraph(&dataConvertingSession);
 
     // Load labels map from .pbtxt file
     std::map<int, std::string> labelsMap = std::map<int,std::string>();
@@ -118,7 +122,7 @@ int main(int argc, char* argv[]) {
 
         // Convert mat to tensor
         tensor = Tensor(tensorflow::DT_FLOAT, shape);
-        Status readTensorStatus = readTensorFromMat(frame, tensor, &opts);
+        Status readTensorStatus = readTensorFromMat(frame, tensor, &dataConvertingSession);
         if (!readTensorStatus.ok()) {
             LOG(ERROR) << "Mat->Tensor conversion failed: " << readTensorStatus;
             return -1;
@@ -126,7 +130,7 @@ int main(int argc, char* argv[]) {
 
         // Run the graph on tensor
         outputs.clear();
-        Status runStatus = session->Run({{inputLayer, tensor}}, outputLayer, {}, &outputs);
+        Status runStatus = objectDetectionSession->Run({{inputLayer, tensor}}, outputLayer, {}, &outputs);
         if (!runStatus.ok()) {
             LOG(ERROR) << "Running model failed: " << runStatus;
             return -1;
