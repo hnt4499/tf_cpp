@@ -14,8 +14,7 @@ Please see the file 'readme.rst' for further instructions.""")
 setup(
     name = "cythoncmakeexample",
     package_dir = {'': 'src'},
-    data_files = [(get_python_lib(), glob.glob('src/*.so')),
-        ('bin', ['bin/rectangle-props'])],
+    data_files = [(get_python_lib(), glob.glob('src/*.so'))],
     author = 'Matt McCormick',
     description = 'Use the CMake build system to make Cython modules.',
     license = 'Apache',

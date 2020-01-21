@@ -18,4 +18,5 @@ cdef class Rectangle:
         return self.thisptr.getArea()
 
     cpdef move(self, dx, dy):
+        """This is the docstring for `move` function."""
         self.thisptr.move(dx, dy)
