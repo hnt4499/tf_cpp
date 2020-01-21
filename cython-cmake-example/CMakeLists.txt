@@ -1,3 +1,4 @@
+# set(CMAKE_CXX_STANDARD 11)
 # Defines the CMake commands/policies
 cmake_minimum_required(VERSION 2.8.5)
 

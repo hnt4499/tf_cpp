@@ -20,6 +20,5 @@ setup(
     license = 'Apache',
     keywords = 'cmake cython build',
     url = 'http://github.com/thewtex/cython-cmake-example',
-    test_require = ['nose'],
     zip_safe = False,
     )
